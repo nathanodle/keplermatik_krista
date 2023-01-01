@@ -1,50 +1,25 @@
 import os
 import openai
+import torch
+import re
 from krista_whisper import StreamHandler
 
 
+from boto3 import Session
+from botocore.exceptions import BotoCoreError, ClientError
+from contextlib import closing
+import os
+import sys
+import playsound
+import dirtyjson
+
+import json
 
 
+print(torch.cuda.get_device_name(0))
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-f = open("openai_question_prompt_conditioning.json", "r")
-gpt_prompt = f.read()
-
-prompt = "This is a conversation with a satellite orbit tracking AI assistant.  In this conversation, the user asks when the satellite ISS will be rising.  Given that ISS will rise in 5 hours 36 minutes, the AI Assistant replies in a friendly, conversational manner, 'it will be rising in about 5 hours, 36 minutes.'  In this conversation, the user asks when the satellite lilacsat 2 will be rising.  Given that lilacsat 2 will rise in 4 hours 32 minutes, the AI Assistant replies in a friendly, conversational manner, '"
-
-gpt_prompt += "Hey Krista, what is the distance between my location and the ISS right now?"
-
-
-response = openai.Completion.create(
-  engine="text-davinci-003",
-  prompt=gpt_prompt,
-  temperature=0,
-  max_tokens=256,
-  top_p=1.0,
-  frequency_penalty=0.0,
-  presence_penalty=0.0
-)
-
-response = response['choices'][0]['text']
-print(response)
-
-gpt_prompt = "You are a chatbot.  You have been asked the following question: " + response + "  formulate a response in natural language, pretending you know the answers, based on the following JSON: {'response':{'latitude': 38.423, 'longitude': 42.347', 'range': '500 km'}} The response is: "
-
-
-response = openai.Completion.create(
-  engine="text-davinci-003",
-  prompt=gpt_prompt,
-  temperature=0.7,
-  max_tokens=256,
-  top_p=1.0,
-  frequency_penalty=0.0,
-  presence_penalty=0.0
-)
-
-
-response = response['choices'][0]['text']
-print(response)
 
 
 
@@ -58,7 +33,7 @@ import time, os, re
 # ToDo: dictation to xed or similar, dynamically open requested sites/apps, or find simpler way.
 # by Nik Stromberg - nikorasu85@gmail.com - MIT 2022 - copilot
 
-AIname = "computer" # Name to call the assistant, such as "computer" or "jarvis". Activates further commands.
+AIname = "Krista" # Name to call the assistant, such as "computer" or "jarvis". Activates further commands.
 City = ''           # Default city for weather, Google uses + for spaces. (uses IP location if not specified)
 
 # possibly redudant settings, but keeping them for easy debugging, for now.
@@ -67,9 +42,14 @@ English = True      # Use english-only model?
 Translate = False   # Translate non-english to english?
 SampleRate = 44100  # Stream device recording frequency
 BlockSize = 30      # Block size in milliseconds
-Threshold = 0.1     # Minimum volume threshold to activate listening
+Threshold = 0.05     # Minimum volume threshold to activate listening
 Vocals = [50, 1000] # Frequency range to detect sounds that could be speech
 EndBlocks = 40      # Number of blocks to wait before sending to Whisper
+
+# Create a client using the credentials and region defined in the [adminuser]
+# section of the AWS credentials file (~/.aws/credentials).
+session = Session(profile_name="krista")
+polly = session.client("polly")
 
 
 class Assistant:
@@ -79,137 +59,113 @@ class Assistant:
     self.prompted = False
     self.espeak = pyttsx3.init()
     self.espeak.setProperty('rate', 180)  # speed of speech, 175 is terminal default, 200 is pyttsx3 default
-    self.askwiki = False
-    self.weatherSave = ['', 0]
-    self.ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0'
+
 
   def analyze(self, input):  # This is the decision tree for the assistant
     string = "".join(ch for ch in input if ch not in ",.?!'").lower()  # Removes punctuations Whisper adds
     query = string.split()  # Split into words
-    if query in (
-    [AIname], ["hey", AIname], ["okay", AIname], ["ok", AIname]):  # if that's all they said, prompt for more input
-      self.speak('Yes?')
+    wake_words = ["hey krista", "hey christa", "hey christo", "hey chris"]
+
+    if any(substring in string for substring in wake_words):  # if that's all they said, prompt for more input
       self.prompted = True
-    if queried := self.prompted or string[1:].startswith(
-            (AIname, "hey " + AIname, "okay " + AIname, "ok " + AIname)):  # AIname in query
-      query = [word for word in query if
-               word not in {"hey", "okay", "ok", AIname}]  # remake query without AIname prompts
-    if self.askwiki or (queried and "wikipedia" in query or "wiki" in query):
-      wikiwords = {"okay", "hey", AIname, "please", "could", "would", "do", "a", "check", "i", "need", "wikipedia",
-                   "search", "for", "on", "what", "whats", "who", "whos", "is", "was", "an", "does", "say", "can",
-                   "you", "tell", "give", "get", "me", "results", "info", "information", "about", "something", "ok"}
-      query = [word for word in query if word not in wikiwords]  # remake query without wikiwords
-      if query == [] and not self.askwiki:  # if query is empty after removing wikiwords, ask user for search term
-        self.speak("What would you like to know about?")
-        self.askwiki = True
-      elif query == [] and self.askwiki:  # if query is still empty, cancel search
-        self.speak("No search term given, canceling.")
-        self.askwiki = False
-      else:
-        self.speak(self.getwiki(" ".join(query)))  # search wikipedia for query
-        self.askwiki = False
-      self.prompted = False
-    elif queried and re.search(r"(song|title|track|name|playing)+", ' '.join(query)):
-      self.speak(mediactl.status()[0]['title'])
-      self.prompted = False
-    elif queried and re.search(r"(play|pause|unpause|resume)+", ' '.join(query)):
-      mediactl.playpause()
-      self.prompted = False
-    elif queried and "stop" in query:
-      # self.espeak.stop()  #could check .isBusy()
-      mediactl.stop()
-      self.prompted = False
-    elif queried and "next" in query or "forward" in query or "skip" in query:
-      mediactl.next()
-      self.prompted = False
-    elif queried and "previous" in query or "back" in query or "last" in query:
-      mediactl.prev()
-      self.prompted = False
-    elif queried and re.search(
-            r"^(volume (up|louder)|(louder|more) (music|volume)|turn (it|the (music|volume|sound)) up( more)?|turn up the (music|volume|sound)|(increase|raise) the (volume|sound))( more)?$",
-            ' '.join(query)):
-      mediactl.volumeup()
-      self.prompted = False
-    elif queried and re.search(
-            r"^(volume (down|lower)|(lower|less) (music|volume)|turn (it|the (music|volume|sound)) down( more)?|turn down the (music|volume|sound)|(decrease|lower) the (volume|sound))( more)?$",
-            ' '.join(query)):
-      mediactl.volumedown()
-      self.prompted = False
-    elif queried and "weather" in query:  # get weather for preset {City}. ToDo: allow user to specify city in prompt
-      self.speak(self.getweather())
-      self.prompted = False
-    elif queried and "time" in query:
-      self.speak(time.strftime("The time is %-I:%M %p."))
-      self.prompted = False
-    elif queried and "date" in query:
-      self.speak(time.strftime(f"Today's date is %B {self.orday()} %Y."))
-      self.prompted = False
-    elif queried and "day" in query or "today" in query:  # and ("what" in query or "whats" in query): # might need this in a few places
-      self.speak(time.strftime(f"It's %A the {self.orday()}."))
-      self.prompted = False
-    elif queried and "joke" in query or "jokes" in query or "funny" in query:
-      try:
-        joke = requests.get('https://icanhazdadjoke.com', headers={'Accept': 'text/plain', 'User-Agent': self.ua}).text
-      except requests.exceptions.ConnectionError:
-        joke = "I can't think of any jokes right now. Connection Error."
-      self.speak(joke)
-      self.prompted = False
-    elif queried and "terminate" in query:  # still deciding on best phrase to close the assistant
-      self.running = False
-      self.speak("Closing Assistant.")
-    elif queried and len(query) > 2:  # tries to detect anything else, but if user mistakenly said prompt word, ignores
-      self.speak(self.getother('+'.join(query)))
+      playsound.playsound("acknowledge.mp3")
+      self.speak("one moment!")
+      f = open("openai_question_prompt_conditioning.json", "r")
+      sample_responses = f.read()
+
+      s = open("hamsats.json", "r")
+      satlist = s.read()
+
+
+      gpt_prompt = satlist + "is a list of valid satellites." + sample_responses + " is a list of sample responses.  make sure satellite is in the list of valid satellites, and set satellite to 'unknown' if it is not.  form the following question into properly formatted json as above:" + string + "{\n \"question\":"
+
+      response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=gpt_prompt,
+        temperature=0,
+        max_tokens=256,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0
+      )
+
+
+      request = "     {\"question\": " + response['choices'][0]['text']
+
+      #print(request)
+      request_data = dirtyjson.loads(request)
+
+      #check first if response has satellite in it
+      satellite_name = request_data['input_parameters']['satellite']
+      print(request_data['input_parameters']['satellite'])
+
+      gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':{'latitude': 38.9517, 'longitude': -92.3341', 'elevation': 'unknown', 'range': '500 km'}}.  You have been asked the following question: " + request + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
+
+      response2 = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=gpt_prompt,
+        temperature=0.7,
+        max_tokens=256,
+        top_p=.2,
+        frequency_penalty=0.0,
+        presence_penalty=0.0
+      )
+
+      response2 = response2['choices'][0]['text']
+      print(response2)
+
+
+      self.speak(response2)
       self.prompted = False
 
   def speak(self, text):
-    self.talking = True  # if I wanna add stop ability, I think function needs to be it's own object
-    print(f"\n\033[92m{text}\033[0m\n")
-    self.espeak.say(text)  # call(['espeak',text]) #'-v','en-us' #without pytttsx3
-    self.espeak.runAndWait()
+    #self.talking = True  # if I wanna add stop ability, I think function needs to be it's own object
+    #print(f"\n\033[92m{text}\033[0m\n")
+    #self.espeak.say(text)  # call(['espeak',text]) #'-v','en-us' #without pytttsx3
+    #self.espeak.runAndWait()
+
+    try:
+        # Request speech synthesis
+        response = polly.synthesize_speech(Text="<speak><prosody rate=\"fast\">" + text + "</prosody></speak>", OutputFormat="mp3",
+                                           VoiceId="Salli", Engine="neural", TextType="ssml")
+    except (BotoCoreError, ClientError) as error:
+        # The service returned an error, exit gracefully
+        print(error)
+        sys.exit(-1)
+
+    # Access the audio stream from the response
+    if "AudioStream" in response:
+        # Note: Closing the stream is important because the service throttles on the
+        # number of parallel connections. Here we are using contextlib.closing to
+        # ensure the close method of the stream object will be called automatically
+        # at the end of the with statement's scope.
+        with closing(response["AudioStream"]) as stream:
+            output = ".\speech.mp3"
+
+            try:
+                # Open a file for writing the output as a binary stream
+                with open(output, "wb") as file:
+                    file.write(stream.read())
+
+                playsound.playsound(output)
+                os.remove(output)
+            except IOError as error:
+                # Could not write to file, exit gracefully
+                print(error)
+                sys.exit(-1)
+
+    else:
+        # The response didn't contain audio data, exit gracefully
+        print("Could not stream audio")
+        sys.exit(-1)
+
+    # Play the audio using the platform's default player
+
+
+
     self.talking = False
 
-  def getweather(self) -> str:
-    curTime = time.time()
-    if curTime - self.weatherSave[1] > 300 or self.weatherSave[
-      1] == 0:  # if last weather request was over 5 minutes ago
-      try:
-        html = requests.get("https://www.google.com/search?q=weather" + City, {'User-Agent': self.ua}).content
-        soup = BeautifulSoup(html, 'html.parser')
-        loc = soup.find("span", attrs={"class": "BNeawe tAd8D AP7Wnd"}).text.split(',')[0]
-        skyc = soup.find('div', attrs={'class': 'BNeawe tAd8D AP7Wnd'}).text.split('\n')[1]
-        temp = soup.find('div', attrs={'class': 'BNeawe iBp4i AP7Wnd'}).text
-        temp += 'ahrenheit' if temp[-1] == 'F' else 'elcius'
-        self.weatherSave[0] = f'Current weather in {loc} is {skyc}, with a temperature of {temp}.'
-        # weather = requests.get(f'http://wttr.in/{City}?format=%C+with+a+temperature+of+%t') #alternative weather API
-        # self.weatherSave[0] = f"Current weather in {City} is {weather.text.replace('+','')}."
-        self.weatherSave[1] = curTime
-      except requests.exceptions.ConnectionError:
-        return "I couldn't connect to the weather service."
-    return self.weatherSave[0]
 
-  def getwiki(self, text) -> str:
-    try:
-      wikisum = wikipedia.summary(text, sentences=2, auto_suggest=False)
-      wikipage = wikipedia.page(text, auto_suggest=False)  # auto_suggest=False prevents random results
-      try:
-        call(['notify-send', 'Wikipedia',
-              wikipage.url])  # with plyer: notification.notify('Wikipedia',wikipage.url,'Assistant')
-      finally:
-        return 'According to Wikipedia:\n' + wikisum  # self.speak(wikisum)
-    except (wikipedia.exceptions.PageError, wikipedia.exceptions.WikipediaException):
-      return "I couldn't find that right now, maybe phrase it differently?"
-
-  def getother(self, text) -> str:
-    try:
-      html = requests.get("https://www.google.com/search?q=" + text, {'User-Agent': self.ua}).content
-      soup = BeautifulSoup(html, 'html.parser')
-      return soup.find('div', attrs={'class': 'BNeawe iBp4i AP7Wnd'}).text
-    except:
-      return "Sorry, I'm afraid I can't do that."
-
-  def orday(self) -> str:  # Returns day of the month with Ordinal suffix: 1st, 2nd, 3rd, 4th, etc.
-    day = time.strftime("%-d")
-    return day + 'th' if int(day) in [11, 12, 13] else day + {1: 'st', 2: 'nd', 3: 'rd'}.get(int(day) % 10, 'th')
 
 
 
@@ -227,3 +183,7 @@ def main():
 
 if __name__ == '__main__':
     main()  # by Nik
+
+
+
+
