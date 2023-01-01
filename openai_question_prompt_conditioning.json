@@ -1,0 +1,217 @@
+{
+  "when is the next pass for AO-7?": {
+    "category": "satellite pass_prediction",
+    "input_parameters": {
+      "pass_numbers": [0]
+      "satellite": "AO-7"
+    },
+    "output_parameters": [
+      "satellite_rise_time",
+      "satellite_set_time",
+      "satellite_maximum_elevation"
+    ]
+  },
+  "what is the current latitude and longitude of ARISS?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "ARISS",
+      "time": "now"
+    },
+    "output_parameters": [
+      "latitude",
+      "longitude"
+    ]
+  },
+  "where will the ISS be at 8:36pm?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "ISS-FM",
+      "time": "Dec 31 2022 20:36UTC"
+    },
+    "output_parameters": [
+      "latitude",
+      "longitude",
+      "altitude",
+      "nearest_city"
+    ]
+  },
+  "how should I point my antenna for HO-113?": {
+    "category": "antenna_pointing",
+    "input_parameters": {
+      "satellite": "HO-113",
+      "time": "now"
+    },
+    "output_parameters": [
+      "azimuth",
+      "elevation"
+    ]
+  },
+  "what satellites are currently visible from my location": {
+    "category": "satellite_visibility",
+    "input_parameters": {
+      "locations": [
+        "my_location"
+      ]
+    },
+    "output_parameters": [
+      "visible_satellites"
+    ]
+  },
+  "which satellites are mutually visible from my location and Austin, TX?": {
+    "category": "satellite_visibility",
+    "input_parameters": {
+      "locations": [
+        "my_location",
+        "Austin, TX"
+      ]
+    },
+    "output_parameters": [
+      "visible_satellites"
+    ]
+  },
+  "give me a 10 minute warning before IO-86 passes overhead": {
+    "category": "satellite_pass_warning",
+    "input_parameters": {
+      "satellite": "IO-86",
+      "t_minus": 600
+    },
+    "output_parameters": [
+      "warning_time"
+    ]
+  },
+  "when will AO-73 next be in range of my location?": {
+    "category": "satellite_pass_prediction",
+    "input_parameters": {
+      "satellite": "AO-73",
+      "location": "my_location"
+    },
+    "output_parameters": [
+      "satellite_rise_time",
+      "satellite_set_time",
+      "satellite_maximum_elevation"
+    ]
+  },
+  "what is the current elevation of AO-51 above the horizon?": {
+    "category": "antenna_pointing",
+    "input_parameters": {
+      "satellite": "AO-51"
+    },
+    "output_parameters": [
+      "elevation"
+    ]
+  },
+  "what is the current velocity of SO-50?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "SO-50"
+    },
+    "output_parameters": [
+      "velocity"
+    ]
+  },
+  "what are the current doppler shifts for the downlink and uplink frequencies of AO-73?": {
+    "category": "satellite_doppler",
+    "input_parameters": {
+      "satellite": "AO-73"
+    },
+    "output_parameters": [
+      "downlink_frequency",
+      "uplink_frequency",
+      "downlink_doppler_shift",
+      "uplink_doppler_shift"
+    ]
+  },
+  "what is the current distance from me to AO-91?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "AO-91",
+      "location": "my_location"
+    },
+    "output_parameters": [
+      "range"
+    ]
+  },
+  "what is the maximum elevation angle for AO-91 during its next pass over my location?": {
+    "category": "satellite_pass_prediction",
+    "input_parameters": {
+      "pass_numbers": [0],
+      "satellite": "AO-91",
+      "location": "my_location"
+    },
+    "output_parameters": [
+      "satellite_maximum_elevation"
+    ]
+  },
+  "what is the maximum Doppler shift for AO-85 during its next pass over my location?": {
+    "category": "satellite_pass_prediction",
+    "input_parameters": {
+      "pass_numbers": [0],
+      "satellite": "AO-85",
+      "location": "my_location"
+    },
+    "output_parameters": [
+      "maximum_doppler_shift"
+    ]
+  },
+  "what is the footprint of AO-10 at its current location?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "AO-10"
+    },
+    "output_parameters": [
+      "footprint"
+    ]
+  },
+  "what is the distance between my location and the ISS at this moment?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "ISS",
+      "location": "my_location"
+    },
+    "output_parameters": [
+      "range"
+    ]
+  },
+  "what is the current orbit number of AO-51?": {
+    "category": "satellite_state",
+    "input_parameters": {
+      "satellite": "AO-51",
+    },
+    "output_parameters": [
+      "orbit_number"
+    ]
+  },
+  "what is the next time that AO-7 will be visible from my location?": {
+    "category": "satellite_pass_prediction",
+    "input_parameters": {
+      "satellite": "AO-7",
+      "location": "my_location",
+      "pass_numbers": [0]
+    },
+    "output_parameters": [
+      "satellite_rise_time",
+      "satellite_set_time",
+      "satellite_maximum_elevation"
+    ]
+  },
+  "what satellites are currently in range of my location?": {
+    "category": "satellite_visibility",
+    "input_parameters": {
+      "locations": "my_location"
+    },
+    "output_parameters": [
+      "visible_satellites"
+    ]
+  },
+  "what is the distance between my location and AO-85 during its next pass over my location?": {
+    "category": "satellite_pass_prediction",
+    "input_parameters": {
+      "pass_numbers": [0],
+      "satellite": "AO-85",
+      "locations": "my_location"
+    },
+    "output_parameters": [
+      "maximum_range",
+      "minimum_range"
+    ]
+  },
