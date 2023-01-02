@@ -1,8 +1,10 @@
 import os
+import traceback
+
 import openai
 import torch
 import re
-from krista_whisper import StreamHandler
+from krista_transcriber import Transcriber
 
 
 from boto3 import Session
@@ -173,10 +175,11 @@ class Assistant:
 def main():
     try:
         Krista = Assistant() #voice object before this?
-        handler = StreamHandler(Krista)
+        handler = Transcriber(Krista)
         handler.listen()
-    except Exception as inst:
-        print(inst)
+    except:
+        print("error")
+        traceback.print_exc()
     finally:
         print("\n\033[93mQuitting..\033[0m")
         #if os.path.exists('dictate.wav'): os.remove('dictate.wav')
