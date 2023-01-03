@@ -21,37 +21,51 @@ class RingBuffer:
     def __init__(self, size):
         self.size = size
         self.data = np.zeros((size, 1))
-        self.start_pointer = 0
-        self.end_pointer = 0
-        self.read_start_pointer = 0
+        self.read_pointer = 0
+        self.write_pointer = 0
+        self.read_pointer = 0
+        self.buffer_wrapped = False
 
     def add_samples(self, samples):
-        self.start_pointer = self.end_pointer
-        self.end_pointer = (self.start_pointer + samples.shape[0]) % self.size
-        self.read_start_pointer = 0
+
+        samples_length = samples.shape[0]
+        #self.write_pointer = (self.read_pointer + samples.shape[0]) % self.size
+
 
         # if the remaining space in buffer is bigger than samples, do this
-        if self.start_pointer < self.end_pointer:
-            self.data[self.start_pointer:self.start_pointer + samples.shape[0], :] = samples
-            self.read_start_pointer = self.end_pointer
+        if samples_length + self.write_pointer < self.size:
+            if self.buffer_wrapped:
+                print("* " + str(self.read_pointer) + " " + str(self.write_pointer))
+
+                self.read_pointer = self.write_pointer
+
+            self.data[self.write_pointer:self.write_pointer + samples.shape[0], :] = samples
+            self.write_pointer = self.write_pointer + samples_length
+
 
 
         # if samples will overflow remaining buffer space
         else:
 
-            # this is the blank space left in the buffer
-            space_left = self.size - self.start_pointer
+            self.buffer_wrapped = True
 
-            # if samples will fit in the buffer
-            if samples.shape[0] < self.size:
-                # this takes and fills the remaining space with as much of the samples array as will fit, starting with the top items
+            if self.buffer_wrapped:
+                print("* " + str(self.read_pointer) + " " + str(self.write_pointer))
 
-                self.data[self.start_pointer:, :] = samples[:space_left, :]
+                self.read_pointer = self.write_pointer
 
-                # now fill the start of our buffer with the data from samples preceding the above
-                samples_start_index = space_left
+            # this is the space left between the write pointer and the end of the array
+            space_left = self.size - self.write_pointer
 
-                self.data[0:samples.shape[0] - samples_start_index:] = samples[samples_start_index:]
+            # this takes and fills the remaining space with as much of the samples array as will fit, starting with the top items
+
+            self.data[self.write_pointer:, :] = samples[:space_left, :]
+
+            # now fill the start of our buffer with the data from samples preceding the above
+            samples_start_index = space_left
+
+            self.write_pointer = samples.shape[0] - samples_start_index
+            self.data[0:self.write_pointer:] = samples[samples_start_index:]
 
 
     def __getitem__(self, indices):
@@ -68,11 +82,16 @@ class RingBuffer:
             if step is None:
                 step = 1
 
-            start += self.read_start_pointer
+
+
+            start += self.read_pointer
             start = start % self.size
 
-            stop += self.read_start_pointer
+            stop += self.write_pointer
             stop = stop % self.size
+
+            print(" " + str(self.read_pointer) + " " + str(self.write_pointer))
+            print(" " + str(start) + " " + str(stop))
 
             if stop > start:
                 return_value = self.data[start:stop:step, :]
@@ -80,47 +99,62 @@ class RingBuffer:
             else:
                 return_value = (np.concatenate((self.data[start:, :], self.data[:stop, :]))[::step, :])
 
-            self.read_start_pointer = stop
+
+            self.read_pointer = stop
             return return_value
 
             # todo this most recently retrieved thing still doesn't work all the way
 
 
 buf = RingBuffer(10)
-test = np.array([[1], [2], [3]])
+test = np.array([[-2], [-1], [0]])
 
-buf.add_samples(test)
-print(buf[:])
-print(buf.data)
-print("-------")
-test = np.array([[4], [5], [6]])
-buf.add_samples(test)
-print("-------")
-test = np.array([[7], [8], [9]])
-buf.add_samples(test)
-print(buf[:])
-print(buf.data)
-print("-------")
-test = np.array([[10], [11], [12]])
-buf.add_samples(test)
-print(buf[:])
-print(buf.data)
-print("-------")
+for i in range(0, 8):
 
-test = np.array([[13], [14], [15]])
-buf.add_samples(test)
+    test = test + 3
+    buf.add_samples(test)
 
-print("buf")
-print(buf[:])
-print("buf data")
-#print(buf.data)
-print("-------")
+    print(str(i) + " --------")
+    print(" " + str(buf.data.flatten()))
+    if i not in range(2, 5):
+        print(" " + str(buf[:].flatten()))
+    print("  -------")
+    print("")
 
-test = np.array([[16], [17], [18]])
-buf.add_samples(test)
 
-print("buf")
-print(buf[:])
-print("buf data")
-print(buf.data)
-print("-------")
+
+# buf.add_samples(test)
+# print(buf[:])
+# print(buf.data)
+# print("-------")
+# test = np.array([[4], [5], [6]])
+# buf.add_samples(test)
+# print("-------")
+# test = np.array([[7], [8], [9]])
+# buf.add_samples(test)
+# print(buf[:])
+# print(buf.data)
+# print("-------")
+# test = np.array([[10], [11], [12]])
+# buf.add_samples(test)
+# print(buf[:])
+# print(buf.data)
+# print("-------")
+#
+# test = np.array([[13], [14], [15]])
+# buf.add_samples(test)
+#
+# print("buf")
+# print(buf[:])
+# print("buf data")
+# #print(buf.data)
+# print("-------")
+#
+# test = np.array([[16], [17], [18]])
+# buf.add_samples(test)
+#
+# print("buf")
+# print(buf[:])
+# print("buf data")
+# print(buf.data)
+# print("-------")
