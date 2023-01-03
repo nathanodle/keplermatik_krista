@@ -1,20 +1,4 @@
-import collections
-
-import playsound
 import numpy as np
-
-import os
-import sounddevice as sd
-import whisper
-from scipy.io.wavfile import write
-
-whisper_model_size = 'medium'
-
-volume_activation_threshold = 0.1
-sample_rate = 44100
-block_size = 30
-vocal_filter_range = [30, 10000]
-max_silence_delay = 4
 
 
 class RingBuffer:
@@ -23,42 +7,48 @@ class RingBuffer:
         self.data = np.zeros((size, 1))
         self.read_pointer = 0
         self.write_pointer = 0
-        self.read_pointer = 0
+        self.read_finish_pointer = 0
         self.buffer_wrapped = False
+        self.read_pointer_overtake = True
+
 
     def add_samples(self, samples):
 
         samples_length = samples.shape[0]
-        #self.write_pointer = (self.read_pointer + samples.shape[0]) % self.size
-
-
+        start_write_pointer = self.write_pointer
         # if the remaining space in buffer is bigger than samples, do this
         if samples_length + self.write_pointer < self.size:
-            if self.buffer_wrapped:
-                print("* " + str(self.read_pointer) + " " + str(self.write_pointer))
-
-                self.read_pointer = self.write_pointer
 
             self.data[self.write_pointer:self.write_pointer + samples.shape[0], :] = samples
             self.write_pointer = self.write_pointer + samples_length
 
+            # todo:  the issue is in here somewhere.  Basically, we're not detecting all conditions where write_pointer overtakes read_pointer
+            print(" start_write_pointer: " + str(start_write_pointer))
+            print(" read_pointer: " + str(self.read_pointer))
+            print(" write_pointer: " + str(self.write_pointer))
+            print(" read_pointer_overtake: " + str(self.read_pointer_overtake))
+            if self.buffer_wrapped:
+                if self.read_pointer_overtake:
+                    if self.read_pointer > self.write_pointer - 1:
+                        self.read_pointer = self.write_pointer
+                        self.read_pointer_overtake = True
 
+                    print("set read pointer from straight write (overflow) to " + str(self.read_pointer))
+
+
+
+            print("no buffer wrap")
 
         # if samples will overflow remaining buffer space
         else:
 
             self.buffer_wrapped = True
 
-            if self.buffer_wrapped:
-                print("* " + str(self.read_pointer) + " " + str(self.write_pointer))
-
-                self.read_pointer = self.write_pointer
-
+            start_write_pointer = self.write_pointer
             # this is the space left between the write pointer and the end of the array
             space_left = self.size - self.write_pointer
 
             # this takes and fills the remaining space with as much of the samples array as will fit, starting with the top items
-
             self.data[self.write_pointer:, :] = samples[:space_left, :]
 
             # now fill the start of our buffer with the data from samples preceding the above
@@ -66,7 +56,32 @@ class RingBuffer:
 
             self.write_pointer = samples.shape[0] - samples_start_index
             self.data[0:self.write_pointer:] = samples[samples_start_index:]
+            print("** " + str(self.read_pointer) + " " + str(self.write_pointer))
 
+            # if self.read_pointer_overtake:
+            #     self.read_pointer_overtake = True
+            #     self.read_pointer = self.write_pointer
+            #todo:  the issue is in here somewhere.  Basically, we're not detecting all conditions where write_pointer overtakes read_pointer
+            print(" start_write_pointer: " + str(start_write_pointer))
+            print(" read_pointer: " + str(self.read_pointer))
+            print(" write_pointer: " + str(self.write_pointer))
+            print(" read_pointer_overtake: " + str(self.read_pointer_overtake))
+            if self.read_pointer < start_write_pointer and self.read_pointer > self.write_pointer - 1:
+                if self.read_pointer_overtake:
+                    self.read_pointer = self.write_pointer
+                    print("set read pointer from overflow write (read < write) to " + str(self.read_pointer))
+                print("set overtake (read <= start_write, read > write - 1)")
+                self.read_pointer_overtake = True
+
+            if self.read_pointer <= start_write_pointer and self.read_pointer < self.write_pointer - 1:
+                if self.read_pointer_overtake:
+                    self.read_pointer = self.write_pointer
+                    print("set read pointer from overflow write (read < write) to " + str(self.read_pointer))
+                print("set overtake (read <= start_write, read < write - 1)")
+                self.read_pointer_overtake = True
+
+
+        print("leaving read pointer: " + str(self.read_pointer) + " write pointer: " + str(self.write_pointer))
 
     def __getitem__(self, indices):
         if isinstance(indices, slice):
@@ -82,9 +97,13 @@ class RingBuffer:
             if step is None:
                 step = 1
 
-
-
+            # if self.read_pointer < self.write_pointer:
+            #     print(" using read_pointer")
             start += self.read_pointer
+            # else:
+            #     print(" using read_finish_pointer")
+            #     start += self.read_finish_pointer
+
             start = start % self.size
 
             stop += self.write_pointer
@@ -97,10 +116,16 @@ class RingBuffer:
                 return_value = self.data[start:stop:step, :]
 
             else:
-                return_value = (np.concatenate((self.data[start:, :], self.data[:stop, :]))[::step, :])
+                return_value = np.concatenate((self.data[start:, :], self.data[:stop, :]))[::step, :]
 
+            self.read_pointer = stop % self.size
+            self.read_finish_pointer = stop % self.size
 
-            self.read_pointer = stop
+            print("set read pointer from read to " + str(self.read_pointer))
+
+            self.read_pointer_overtake = False
+            self.buffer_wrapped = False
+
             return return_value
 
             # todo this most recently retrieved thing still doesn't work all the way
@@ -116,12 +141,10 @@ for i in range(0, 8):
 
     print(str(i) + " --------")
     print(" " + str(buf.data.flatten()))
-    if i not in range(2, 5):
+    if i not in range(3,4):
         print(" " + str(buf[:].flatten()))
     print("  -------")
     print("")
-
-
 
 # buf.add_samples(test)
 # print(buf[:])
