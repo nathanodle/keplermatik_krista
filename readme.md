@@ -29,7 +29,7 @@ The central core of the system is a fast, open-source websockets server that pro
 
 [Keplermatik Krista](https://github.com/mysteriousham73/keplermatik_krista) is a voice assistant that can provide any information from PyKeplermatik in an easily accessible format.
 
-This assistant is named after [Crista McAullife](https://en.wikipedia.org/wiki/Christa_McAuliffe), the teacher lost in the Space Shuttle Challenger disaster in 1986.  As a schoolteacher she impacted many lives and inspired children around the world. 
+This assistant is named after [Christa McAullife](https://en.wikipedia.org/wiki/Christa_McAuliffe), the teacher lost in the Space Shuttle Challenger disaster in 1986.  As a schoolteacher she impacted many lives and inspired children around the world. 
 
 Krista builds on the following technologies:
 
