@@ -33,7 +33,6 @@ import torch
 import re
 from krista_transcriber import transcriber
 
-
 from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
 from contextlib import closing
@@ -41,9 +40,6 @@ import os
 import sys
 import playsound
 import dirtyjson
-
-
-
 
 if __name__ == '__main__':
     transcription_queue = multiprocessing.Queue()
