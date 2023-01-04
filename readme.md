@@ -63,7 +63,7 @@ Krista builds on the following technologies:
 
 This JSON is then processed by the system which will link in information from the PyKeplermatik server to build a response to the user.
 
-### Keplermatik TUI https://i.imgur.com/MoWhES2.jpg
+### Keplermatik TUI
 
 Not yet but soon to be public on GitHub is a TUI (Text User Interface) which provides graphical representation of the satellite's location over the earth's surface.  As PyKeplermatik progresses, it will also be able to plot future orbits as well as sun/shadow.  Additionally, it will display an easy to navigate interface for choosing satellites and up/downlinks.
 
