@@ -131,9 +131,9 @@ class Transcriber:
         self.preroll_count = 5
         self.postroll_counter = 0
         self.recordings = 0
-        print("\033[96mLoading Whisper Model..\033[0m", end='', flush=True)
+        print("loading model")
         self.model = whisper.load_model(whisper_model_size + ".en")
-        print("\033[90m Done.\033[0m")
+        print("done")
 
     def process_audio(self, audio_sample_array, frames:
 
@@ -198,7 +198,7 @@ class Transcriber:
     def transcribe(self):
         if self.transcribe_now:
 
-            print("transcribinh")
+            print("transcribing")
             result = self.model.transcribe("./dictate.wav", fp16=False, language='en', task='transcribe')
             print(result['text'])
             if self.asst.analyze is not None:
@@ -207,7 +207,7 @@ class Transcriber:
             self.transcribe_now = False
 
     def listen(self):
-        print("\033[32mListening.. \033[37m(Ctrl+C to Quit)\033[0m")
+        print("listening")
 
         with sd.InputStream(channels=1, callback=self.process_audio, blocksize=1369, samplerate=sample_rate):
             while self.running and self.asst.running:
