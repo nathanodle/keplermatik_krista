@@ -12,8 +12,8 @@
 
 - [Architecture](#installation)
     - [PyKeplermatik](#PyKepermatik)
-    - [Keplermatik Krista](#Keplermatik Krista)
-    - [Keplermatik TUI](#Keplermatik TUI)
+    - [Keplermatik Krista](#Keplermatik-Krista)
+    - [Keplermatik TUI](#Keplermatik-TUI)
 
 - [License](#license)
 - [Links](#links)
@@ -77,7 +77,7 @@ Also planned (for fun!) is a dial-up server which will host Keplermatik TUI for 
 
 ## License
 
-For now, PyKeplermatik is using the [SSPL](https://en.wikipedia.org/wiki/Server_Side_Public_License).  Many do not consider it true open source, but it's a 'safe' option until less restrictive alternatives can be considered.  
+For now, PyKeplermatik is using the [SSPL](https://en.wikipedia.org/wiki/Server_Side_Public_License).  Some might not consider it true open source, but it's a 'safe' option until less restrictive alternatives are considered.  In the meantime, feel free to contact for other licensing requests, we're pretty open-minded!  
 
 ## Links
 
