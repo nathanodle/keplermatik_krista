@@ -71,6 +71,7 @@ class RingBuffer:
                 samples_start_index = num_to_end - self.curr_index
                 self.data[0:self.curr_index - 1, :] = samples[samples_start_index:num_to_end - 1]
 
+
             # this is how much bigger than the remaining space the input is
             # num_wrapped = samples.shape[0] - num_to_end
             #
@@ -161,14 +162,14 @@ class Transcriber:
                 if self.from_silence is True:
                     print("adding " + str(self.preroll_count) + " preroll frames")
                     print("buffer_data")
-                    # print(self.buffer)
+                    #print(self.buffer)
                     print("-------")
                     print("ring_buffer data")
                     print(self.ring_buffer.data)
                     print("-------")
                     self.buffer = np.concatenate((self.buffer, self.ring_buffer[1:]))
                     print("buffer_data")
-                    # print(self.buffer)
+                    #print(self.buffer)
                     print("-------")
                     print('\033[31m.\033[0m', end='', flush=True)
 
