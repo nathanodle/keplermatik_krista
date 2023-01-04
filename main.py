@@ -1,3 +1,30 @@
+#
+#     Copyright (C) 2019-present Nathan Odle
+#
+#     This program is free software: you can redistribute it and/or modify
+#     it under the terms of the Server Side Public License, version 1,
+#     as published by MongoDB, Inc.
+#
+#     This program is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     Server Side Public License for more details.
+#
+#     You should have received a copy of the Server Side Public License
+#     along with this program. If not, email mysteriousham73@gmail.com
+#
+#     As a special exception, the copyright holders give permission to link the
+#     code of portions of this program with the OpenSSL library under certain
+#     conditions as described in each individual source file and distribute
+#     linked combinations including the program with the OpenSSL library. You
+#     must comply with the Server Side Public License in all respects for
+#     all of the code used other than as permitted herein. If you modify file(s)
+#     with this exception, you may extend this exception to your version of the
+#     file(s), but you are not obligated to do so. If you do not wish to do so,
+#     delete this exception statement from your version. If you delete this
+#     exception statement from all source files in the program, then also delete
+#     it in the license file.
+
 import os
 import traceback
 
@@ -30,23 +57,7 @@ import pyttsx3
 import time, os, re
 #import webbrowser #wip might use later
 
-# My simple AI assistant using my LiveWhisper as a base. Can perform simple tasks such as:
-# searching wikipedia, telling the date/time/weather/jokes, basic math and trivia, and more.
-# ToDo: dictation to xed or similar, dynamically open requested sites/apps, or find simpler way.
-# by Nik Stromberg - nikorasu85@gmail.com - MIT 2022 - copilot
 
-AIname = "Krista" # Name to call the assistant, such as "computer" or "jarvis". Activates further commands.
-City = ''           # Default city for weather, Google uses + for spaces. (uses IP location if not specified)
-
-# possibly redudant settings, but keeping them for easy debugging, for now.
-Model = 'medium'     # Whisper model size (tiny, base, small, medium, large)
-English = True      # Use english-only model?
-Translate = False   # Translate non-english to english?
-SampleRate = 44100  # Stream device recording frequency
-BlockSize = 30      # Block size in milliseconds
-Threshold = 0.05     # Minimum volume threshold to activate listening
-Vocals = [50, 1000] # Frequency range to detect sounds that could be speech
-EndBlocks = 40      # Number of blocks to wait before sending to Whisper
 
 # Create a client using the credentials and region defined in the [adminuser]
 # section of the AWS credentials file (~/.aws/credentials).
@@ -54,14 +65,11 @@ session = Session(profile_name="krista")
 polly = session.client("polly")
 
 
-class Assistant:
+class Krista:
   def __init__(self):
     self.running = True
     self.talking = False
     self.prompted = False
-    self.espeak = pyttsx3.init()
-    self.espeak.setProperty('rate', 180)  # speed of speech, 175 is terminal default, 200 is pyttsx3 default
-
 
   def analyze(self, input):  # This is the decision tree for the assistant
     string = "".join(ch for ch in input if ch not in ",.?!'").lower()  # Removes punctuations Whisper adds
@@ -174,7 +182,7 @@ class Assistant:
 
 def main():
     try:
-        Krista = Assistant() #voice object before this?
+        Krista = Krista() #voice object before this?
         handler = Transcriber(Krista)
         handler.listen()
     except:
