@@ -23,11 +23,11 @@
 ### PyKepermatik
 The central core of the system is a fast, open-source websockets server that provides satellite predictions to connected clients.  It uses Python multiprocessing to make predictions in an efficient manner, using Brandon Rhodes's brilliant [Skyfield](https://github.com/skyfielders/python-skyfield) library and its implementation of the Simplified General Perturbations propagator, which is among the best out there.  It also provides management of Two Line Elements (TLEs), ensuring that the most recent are available using a combination of those available from [SatNOGS](https://satnogs.org/) and [Celestrak](https://celestrak.org/).  It provides satellite uplink/downlink information from Satnogs and can calculate the doppler shift of a signal at the observer's location. 
 
-PyKeplermatik currently handles predictions of a satellite's current location, as well as observer-dependent information such as azimuth and elevation.  In the works: future pass prediction, satellite horizon/footprint, and other useful features. 
+[PyKeplermatik](https://github.com/mysteriousham73/PyKeplermatik) currently handles predictions of a satellite's current location, as well as observer-dependent information such as azimuth and elevation.  In the works: future pass prediction, satellite horizon/footprint, and other useful features. 
 
 ### Keplermatik Krista
 
-Keplermatik Krista is a voice assistant that can provide any information from PyKeplermatik in an easily accessible format.
+[Keplermatik Krista](https://github.com/mysteriousham73/keplermatik_krista) is a voice assistant that can provide any information from PyKeplermatik in an easily accessible format.
 
 This assistant is named after [Crista McAullife](https://en.wikipedia.org/wiki/Christa_McAuliffe), the teacher lost in the Space Shuttle Challenger disaster in 1986.  As a schoolteacher she impacted many lives and inspired children around the world. 
 
