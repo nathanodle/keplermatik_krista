@@ -6,7 +6,7 @@
 # Keplermatik
 
 ### Keplermatik is a suite of interconnected tools to predict satellite orbits.
-**This is a hobbyist-scale project, currently being refined for public use.  Installation, CI, and other documentation is in the works!**
+**This is a hobby-scale project, currently being refined for public use.  Installation, CI, and other documentation is in the works!**
 
 ## Table of contents
 
