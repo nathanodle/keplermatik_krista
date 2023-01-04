@@ -135,13 +135,13 @@ class Transcriber:
         self.model = whisper.load_model(whisper_model_size + ".en")
         print("done")
 
-    def process_audio(self, audio_sample_array, frames:
+    def process_audio(self, audio_sample_array, frames):
 
         if not self.asst.talking:
             audio_samples = audio_sample_array[:, ]
 
             if not any(audio_samples):
-                print('\033[31m.\033[0m', end='', flush=True)
+                print(".")
 
                 return
 
