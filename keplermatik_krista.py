@@ -25,34 +25,62 @@
 #     exception statement from all source files in the program, then also delete
 #     it in the license file.
 
-import os
-import traceback
-
-import openai
-import torch
-import re
-from krista_transcriber import transcriber
+from multiprocessing import set_start_method
 
 
-from boto3 import Session
-from botocore.exceptions import BotoCoreError, ClientError
-from contextlib import closing
-import os
-import sys
-import playsound
-import dirtyjson
+from krista_transcriber import Transcriber
+from krista_agent import KristaAgent
+from krista_audio import Recorder
+from krista_tui import KristaTUI
+import multiprocessing as mp
 
+def transcription_process(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out):
 
+    transcriber = Transcriber(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out)
+
+def agent_process(state, transcription_queue, tui_queue_in, tui_queue_out):
+
+    agent = KristaAgent(state, transcription_queue, tui_queue_in, tui_queue_out)
+
+def audio_process(state, recording_queue, tui_queue_in, tui_queue_out):
+
+    audio = Recorder(state, recording_queue, tui_queue_in, tui_queue_out)
+
+def tui_process(state, tui_queue_in, tui_queue_out):
+
+    tui = KristaTUI(state, tui_queue_in, tui_queue_out)
 
 
 if __name__ == '__main__':
-    transcription_queue = multiprocessing.Queue()
+    set_start_method("spawn")
 
-    transcription_p = multiprocessing.Process(target=transcription_process, args=(transcription_queue,))
-    main_p = multiprocessing.Process(target=main_process, args=(transcription_queue,))
+    state_manager = mp.Manager()
+    state = state_manager.dict()
 
+    state['agent_speaking'] = False
+    state['agent_prompted'] = False
+
+    transcription_queue = mp.Queue()
+    recording_queue = mp.Queue()
+    tui_queue_in = mp.Queue()
+    tui_queue_out = mp.Queue()
+
+    agent_p = mp.Process(target=agent_process, args=(state, transcription_queue, tui_queue_in, tui_queue_out))
+    transcription_p = mp.Process(target=transcription_process, args=(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out))
+    audio_p = mp.Process(target=audio_process, args=(state, recording_queue, tui_queue_in, tui_queue_out))
+    # tui_p = mp.Process(target=tui_process, args=(state, tui_queue_in, tui_queue_out))
+
+    agent_p.start()
     transcription_p.start()
-    main_p.start()
+    audio_p.start()
+    # tui_p.start()
 
+
+    # tui_p.join()
+
+    tui = KristaTUI(state, tui_queue_in, tui_queue_out)
+
+    agent_p.join()
     transcription_p.join()
-    main_p.join()
+    audio_p.join()
+

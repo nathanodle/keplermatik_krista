@@ -25,190 +25,50 @@
 #     exception statement from all source files in the program, then also delete
 #     it in the license file.
 
-import numpy as np
-
-import sounddevice as sd
 import whisper
-from scipy.io.wavfile import write
+from krista_util import IPCMessage
 
 whisper_model_size = 'medium'
 
-volume_activation_threshold = 0.1
-sample_rate = 44100
-block_size = 30
-vocal_filter_range = [30, 10000]
-max_silence_delay = 4
-
-
-class RingBuffer:
-    def __init__(self, size):
-        self.size = size
-        self.data = np.zeros((size, 1))
-        self.curr_index = 0
-
-    def add_samples(self, samples):
-
-        # if the remaining space in buffer is bigger than samples, do this
-        if samples.shape[0] + self.curr_index < self.size:
-            self.data[self.curr_index:self.curr_index + samples.shape[0], :] = samples
-            self.curr_index = self.curr_index + samples.shape[0]
-
-        # if samples will overflow remaining buffer space
-        else:
-            # this is the blank space left in the buffer
-            num_to_end = self.size - self.curr_index
-
-            # if samples will fit in the buffer
-            if samples.shape[0] < self.size:
-                # this takes and fills the remaining space with as much of the samples array as will fit, starting with the top items
-                self.data[self.curr_index:, :] = samples[:num_to_end, :]
-
-                # now fill the start of our buffer with the data from samples preceding the above
-                samples_start_index = num_to_end - self.curr_index
-                self.data[0:self.curr_index - 1, :] = samples[samples_start_index:num_to_end - 1]
-
-
-            # this is how much bigger than the remaining space the input is
-            # num_wrapped = samples.shape[0] - num_to_end
-            #
-            #
-            # # this takes and fills
-            # self.data[:num_wrapped, :] = samples[num_to_end:, :]
-            # self.curr_index = num_wrapped
-        # else:
-        #     self.data[self.curr_index:, :] = samples
-        #     self.curr_index += samples.shape[0]
-
-    def __getitem__(self, indices):
-        if isinstance(indices, slice):
-            start = indices.start
-            stop = indices.stop
-            step = indices.step
-            if start is None:
-                start = 0
-            if stop is None:
-                stop = self.size
-            if step is None:
-                step = 1
-            if start < 0:
-                start += self.size
-            if stop < 0:
-                stop += self.size
-            if start >= self.size:
-                start -= self.size
-            if stop >= self.size:
-                stop -= self.size
-            if start < self.curr_index:
-                if stop <= self.curr_index:
-                    return self.data[start:stop:step, :]
-                else:
-                    return np.concatenate((self.data[start:, :], self.data[:stop, :]))[::step, :]
-            else:
-                return self.data[start:stop:step, :]
-        else:
-            if indices < 0:
-                indices += self.size
-            if indices >= self.size:
-                indices -= self.size
-            if indices < self.curr_index:
-                return self.data[indices, :]
-            else:
-                return self.data[indices - self.size, :]
-
 
 class Transcriber:
-    def __init__(self, assistant):
+    def __init__(self, state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out):
 
-        self.ring_buffer = RingBuffer(2000)
-        self.asst = assistant
-        self.running = True
-        self.silence_delay_counter = 0
-        self.silence_during_speech_block = np.zeros((0, 1))
-        self.buffer = np.zeros((0, 1))
-        self.transcribe_now = False
-        self.previous_buffer = np.zeros((0, 1))
-        self.from_silence = False
-        self.preroll_count = 5
-        self.postroll_counter = 0
-        self.recordings = 0
+        print("Transcriber Init")
+        self.state = state
+        self.recording_queue = recording_queue
+        self.transcription_queue = transcription_queue
+        self.tui_queue_in = tui_queue_in
+        self.tui_queue_out = tui_queue_out
+
         print("loading model")
         self.model = whisper.load_model(whisper_model_size + ".en")
         print("done")
 
-    def process_audio(self, audio_sample_array, frames):
+        self.transcribe()
 
-        if not self.asst.talking:
-            audio_samples = audio_sample_array[:, ]
-
-            if not any(audio_samples):
-                print(".")
-
-                return
-
-            fft = np.abs(np.fft.rfft(audio_samples))
-            peak_frequency = np.argmax(fft) * sample_rate / frames
-
-            rms = np.sqrt(np.mean(audio_samples ** 2))
-
-            if rms > volume_activation_threshold and not self.asst.talking:
-
-                if self.from_silence is True:
-                    print("adding " + str(self.preroll_count) + " preroll frames")
-                    print("buffer_data")
-                    #print(self.buffer)
-                    print("-------")
-                    print("ring_buffer data")
-                    print(self.ring_buffer.data)
-                    print("-------")
-                    self.buffer = np.concatenate((self.buffer, self.ring_buffer[1:]))
-                    print("buffer_data")
-                    #print(self.buffer)
-                    print("-------")
-                    print('\033[31m.\033[0m', end='', flush=True)
-
-                print('.', end='', flush=True)
-                self.buffer = np.concatenate((self.buffer, audio_sample_array))
-                self.silence_delay_counter = 0
-                self.from_silence = False
-
-            else:
-                if self.postroll_counter < 1:
-                    self.buffer = np.concatenate((self.buffer, audio_sample_array))
-                    self.postroll_counter += 1
-
-                else:
-                    self.postroll_counter = 0
-                    self.from_silence = True
-                    # self.ring_buffer.append(audio_sample_array)
-
-                    if self.buffer.shape[0] > sample_rate:
-
-                        self.ring_buffer.add_samples(audio_sample_array)
-
-                        if self.silence_delay_counter > max_silence_delay:
-                            print("go to transcribe")
-
-                            write("dictate" + str(self.recordings) + ".wav", sample_rate, self.buffer)
-                            self.transcribe_now = True
-                            self.buffer = np.zeros((0, 1))
-                            self.recordings += 1
-
-                    self.silence_delay_counter += 1
 
     def transcribe(self):
-        if self.transcribe_now:
+        while True:
 
-            print("transcribing")
-            result = self.model.transcribe("./dictate.wav", fp16=False, language='en', task='transcribe')
-            print(result['text'])
-            if self.asst.analyze is not None:
-                self.asst.analyze(result['text'])
+            while not self.recording_queue.empty():
+                ipc_message = self.recording_queue.get()
 
-            self.transcribe_now = False
+                if ipc_message.type == "RECORDING":
+                    filename = ipc_message.data
+                    #print("transcribing")
+                    result = self.model.transcribe(filename, fp16=False, language='en', task='transcribe')
 
-    def listen(self):
-        print("listening")
+                    message = "".join(ch for ch in result['text'] if ch not in ",.?!'").lower()
+                    print(message)
+                    wake_words = ["hey krista", "hey christa", "hey christo", "hey chris"]
 
-        with sd.InputStream(channels=1, callback=self.process_audio, blocksize=1369, samplerate=sample_rate):
-            while self.running and self.asst.running:
-                self.transcribe()
+                    self.state['agent_prompted'] = True
+
+                    if any(substring in message for substring in wake_words):
+                        print(message)
+                        ipc_message = IPCMessage("TRANSCRIPTION", message)
+                        self.transcription_queue.put(ipc_message)
+
+
+
