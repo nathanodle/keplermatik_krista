@@ -1,65 +1,96 @@
 Screen {
-    align: center middle;
+    /*background: green;*/
+    /*align: center middle;*/
 }
 
 #header_container {
-    background: $boost;
+    background: white;
+    color:rgb(100, 171, 188);
     width: 100%;
-    height: 3;
+    height: 1;
     padding: 0 1 0 1;
     margin: 0;
+}
+
+#audio_container {
+    height: 10;
+    /*width: 100%;*/
+    border: solid white;
+}
+
+#audio_stats{
+    width: 0.3fr;
+}
+
+#fft_container {
+    width:0.6fr;
+}
+#logs {
+    /*width: 100;*/
+    height: 1.0fr;
+    padding: 0;
+    margin: 0;
+}
+
+#chat_log {
+    /*background: red;*/
+    width: 0.6fr;
+    /*margin: 0 1 0 1;*/
+    border: solid white;
+}
+
+#json_log {
+    /*background: pink;*/
+    width: 0.4fr;
+    /*margin: 0 1 0 1;*/
+    border: solid white;
 }
 
 #footer_container {
-    background: $boost;
-    width: 100%;
-    height: 3;
+    /*background: purple;*/
+    height: 1;
     padding: 0 1 0 1;
     margin: 0;
 }
 
-#asdas {
-    width: 100%;
-    padding: 0;
-    margin: 0;
-}
-
-#map_container {
-    height: 100%;
-    /*max-width: 60%;*/
-    width: 60vw;
-    padding: 0;
-    margin: 0;
-
-    /*dock: left;*/
-
-
-}
-TextLog {
-
-
-}
 
 
 
-#left_map {
-    min-width: 20;
-    /*max-width: 20;*/
-    width: 20vw;
-    padding: 0;
-    margin: 0;
-    /*dock: left;*/
-
-}
 
 
-#right_map {
-    min-width: 20;
-    /*max-width: 20;*/
-    width: 20vw;
-    padding: 0;
-    margin: 0;
-    /*dock: right;*/
+/*from textual.app        import App, ComposeResult*/
+/*from textual.containers import Horizontal, Vertical*/
+/*from textual.widgets    import Header, Footer, Label*/
 
-}
+/*class TwoSidebarApp( App[ None ] ):*/
 
+/*    CSS = """*/
+/*    Vertical {*/
+/*        height: 100%;*/
+/*        border: round red;*/
+/*    }*/
+
+/*    #left {*/
+/*        width: 10;*/
+/*    }*/
+
+/*    #right {*/
+/*        width: 10;*/
+/*    }*/
+
+/*    #middle {*/
+/*        width: 1fr;*/
+/*    }*/
+/*    """*/
+
+/*    def compose( self ) -> ComposeResult:*/
+/*        yield Header()*/
+/*        yield Horizontal(*/
+/*            Vertical( id="left" ),*/
+/*            Vertical( id="middle" ),*/
+/*            Vertical( id="right" )*/
+/*        )*/
+/*        yield Footer()*/
+
+/*if __name__ == "__main__":*/
+/*    TwoSidebarApp().run()*/

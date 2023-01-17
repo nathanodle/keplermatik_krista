@@ -1,7 +1,7 @@
 from time import monotonic
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Header, Footer, Static, Label, Placeholder, TextLog
 
@@ -46,12 +46,13 @@ def loop_first_last(values: Iterable[T]) -> Iterable[tuple[bool, bool, T]]:
 
 class KristaTUI(App):
 
-    def __init__(self, state, tui_queue_in, tui_queue_out):
+    #def __init__(self, state, tui_queue_in, tui_queue_out):
+    def __init__(self):
         super().__init__()
         #print("TUI Init")
-        self.state = state
-        self.tui_queue_in = tui_queue_in
-        self.tui_queue_out = tui_queue_out
+        # self.state = state
+        # self.tui_queue_in = tui_queue_in
+        # self.tui_queue_out = tui_queue_out
 
 
 
@@ -70,28 +71,33 @@ class KristaTUI(App):
 
     def compose(self) -> ComposeResult:
         """Called to add widgets to the app."""
-        yield Container(Label("Keplermatik"), id="header_container")
-        #yield Horizontal(Placeholder("abcd", id="left_map"), TUIAudioDisplay(id="map_container"), Placeholder("efgh", id="right_map"),id="asdas")
-        yield Horizontal(Placeholder("abcd", id="left_map"), TextLog(highlight=True, markup=True), Placeholder("efgh", id="right_map"), id="asdas")
-        yield Container(Placeholder("abcd", id="footer_container"))
+        yield Container(Label(":ringed_planet: Keplermatik Krista"), id="header_container")
+        yield Horizontal(Placeholder("audio stuff", id="audio_stats"), TUIAudioDisplay(id="fft_container"), id="audio_container")
+        yield Horizontal(TextLog(highlight=True, markup=True, id="chat_log"), TextLog(highlight=True, markup=True, id="json_log"), id="logs")
+        yield Container(Label("Listen | Transcribe | Agent"), id="footer_container")
 
     def on_ready(self) -> None:
         """Called  when the DOM is ready."""
-        text_log = self.query_one(TextLog)
+        chat_log = self.query_one("#chat_log")
 
-        text_log.write(Syntax(CODE, "python", indent_guides=True))
+        chat_log.write(Syntax(CODE, "python", indent_guides=True))
+
+        chat_log.write("[bold magenta]Write text or any Rich renderable!")
+
+        json_log = self.query_one("#json_log")
+
 
         rows = iter(csv.reader(io.StringIO(CSV)))
         table = Table(*next(rows))
         for row in rows:
             table.add_row(*row)
 
-        text_log.write(table)
-        text_log.write("[bold magenta]Write text or any Rich renderable!")
+        json_log.write(table)
+        json_log.write("[bold magenta]Write text or any Rich renderable!")
 
     def on_key(self, event: events.Key) -> None:
         """Write Key events to log."""
-        text_log = self.query_one(TextLog)
+        text_log = self.query_one("#chat_log")
         text_log.write(event)
 
 

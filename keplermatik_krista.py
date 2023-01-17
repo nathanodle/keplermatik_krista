@@ -33,25 +33,34 @@ from krista_agent import KristaAgent
 from krista_audio import Recorder
 from krista_tui import KristaTUI
 import multiprocessing as mp
+import typer
+
 
 def transcription_process(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out):
 
     transcriber = Transcriber(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out)
 
+
 def agent_process(state, transcription_queue, tui_queue_in, tui_queue_out):
 
     agent = KristaAgent(state, transcription_queue, tui_queue_in, tui_queue_out)
 
+
 def audio_process(state, recording_queue, tui_queue_in, tui_queue_out):
 
     audio = Recorder(state, recording_queue, tui_queue_in, tui_queue_out)
+
 
 def tui_process(state, tui_queue_in, tui_queue_out):
 
     tui = KristaTUI(state, tui_queue_in, tui_queue_out)
 
 
-if __name__ == '__main__':
+# def main(tui_only: bool = typer.Option(
+#         False, help="Only start TUI.", rich_help_panel="Development"
+#     ),):
+
+def main():
     set_start_method("spawn")
 
     state_manager = mp.Manager()
@@ -70,17 +79,21 @@ if __name__ == '__main__':
     audio_p = mp.Process(target=audio_process, args=(state, recording_queue, tui_queue_in, tui_queue_out))
     # tui_p = mp.Process(target=tui_process, args=(state, tui_queue_in, tui_queue_out))
 
-    agent_p.start()
-    transcription_p.start()
-    audio_p.start()
-    # tui_p.start()
-
-
-    # tui_p.join()
+    # if not tui_only:
+    #     agent_p.start()
+    #     transcription_p.start()
+    #     audio_p.start()
 
     tui = KristaTUI(state, tui_queue_in, tui_queue_out)
 
-    agent_p.join()
-    transcription_p.join()
-    audio_p.join()
+    # if not tui_only:
+    #     agent_p.join()
+    #     transcription_p.join()
+    #     audio_p.join()
 
+
+
+
+if __name__ == "__main__":
+    #typer.run(main)
+    main()

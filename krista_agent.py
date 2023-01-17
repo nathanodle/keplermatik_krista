@@ -41,9 +41,9 @@ from pydub import AudioSegment
 from pydub.playback import play
 import sounddevice as sd
 import soundfile as sf
-
-print(torch.cuda.get_device_name(0))
-print("Agent")
+#
+# print(torch.cuda.get_device_name(0))
+# print("Agent")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 import os
