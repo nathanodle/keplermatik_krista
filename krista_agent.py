@@ -45,6 +45,7 @@ import soundfile as sf
 # print(torch.cuda.get_device_name(0))
 # print("Agent")
 openai.api_key = os.getenv("OPENAI_API_KEY")
+from krista_util import IPCMessage
 
 import os
 
@@ -54,7 +55,7 @@ polly = session.client("polly")
 
 class KristaAgent:
     def __init__(self, state, transcription_queue, tui_queue_in, tui_queue_out):
-        print("Agent Init")
+        # print("Agent Init")
         self.state = state
         self.transcription_queue = transcription_queue
         self.tui_queue_in = tui_queue_in
@@ -64,7 +65,14 @@ class KristaAgent:
 
         self.process_messages()
 
+        ipc_message = IPCMessage("AGENT_STATUS", "ready")
+        self.tui_queue_in.put(ipc_message)
+
     def process_messages(self):
+
+        ipc_message = IPCMessage("AGENT_STATUS", "ready")
+        self.tui_queue_in.put(ipc_message)
+
         while True:
             while not self.transcription_queue.empty():
                 ipc_message = self.transcription_queue.get()
@@ -84,8 +92,9 @@ class KristaAgent:
 
         def callback(outdata, frames, time, status):
             global current_frame
-            if status:
-                print(status)
+            # if status:
+
+                #print(status)
             chunksize = min(len(data) - current_frame, frames)
             outdata[:chunksize] = data[current_frame:current_frame + chunksize]
             if chunksize < frames:
@@ -101,6 +110,8 @@ class KristaAgent:
 
     def analyze(self, input):
 
+
+
         self.prompted = True
         play(AudioSegment.from_mp3("acknowledge.mp3"))
         self.speak("one moment!")
@@ -114,6 +125,9 @@ class KristaAgent:
 
         gpt_prompt = satlist + "is a list of valid satellites." + sample_responses + " is a list of sample responses.  make sure satellite is in the list of valid satellites, and set satellite to 'unknown' if it is not.  form the following question into properly formatted json as above:" + input + "{\n \"question\":"
 
+        ipc_message = IPCMessage("AGENT_STATUS", "thinking")
+        self.tui_queue_in.put(ipc_message)
+
         response = openai.Completion.create(
             engine="text-davinci-003",
             prompt=gpt_prompt,
@@ -126,6 +140,12 @@ class KristaAgent:
 
         request = "     {\"question\": " + response['choices'][0]['text']
 
+        ipc_message = IPCMessage("JSON_MESSAGE", request)
+        self.tui_queue_in.put(ipc_message)
+
+        ipc_message = IPCMessage("AGENT_STATUS", "ready")
+        self.tui_queue_in.put(ipc_message)
+
         # print(request)
         request_data = dirtyjson.loads(request)
 
@@ -136,9 +156,12 @@ class KristaAgent:
             if 'satellite' in request_data['input_parameters']:
 
                 satellite_name = request_data['input_parameters']['satellite']
-                print(request_data['input_parameters']['satellite'])
+                #print(request_data['input_parameters']['satellite'])
 
                 gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':{'latitude': 38.9517, 'longitude': -92.3341', 'elevation': 'unknown', 'range': '500 km'}}.  You have been asked the following question: " + request + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
+
+                ipc_message = IPCMessage("AGENT_STATUS", "thinking")
+                self.tui_queue_in.put(ipc_message)
 
                 response2 = openai.Completion.create(
                     engine="text-davinci-003",
@@ -150,15 +173,21 @@ class KristaAgent:
                     presence_penalty=0.0
                 )
 
-                response2 = response2['choices'][0]['text']
+                response2 = response2['choices'][0]['text'].strip()
 
-        print(response2)
+        ipc_message = IPCMessage("AGENT_STATUS", "ready")
+        self.tui_queue_in.put(ipc_message)
+
+        ipc_message = IPCMessage("AGENT_MESSAGE", response2)
+        self.tui_queue_in.put(ipc_message)
 
         self.speak(response2)
         self.state['agent_prompted'] = False
 
     def speak(self, text):
 
+        ipc_message = IPCMessage("AGENT_STATUS", "speaking")
+        self.tui_queue_in.put(ipc_message)
         try:
             # Request speech synthesis
             response = polly.synthesize_speech(Text="<speak><prosody rate=\"fast\">" + text + "</prosody></speak>",
@@ -184,7 +213,12 @@ class KristaAgent:
                     play(AudioSegment.from_mp3(output))
                     os.remove(output)
 
+                    ipc_message = IPCMessage("AGENT_STATUS", "ready")
+                    self.tui_queue_in.put(ipc_message)
+
                     self.state['agent_speaking'] = False
+
+
                 except IOError as error:
 
                     print(error)

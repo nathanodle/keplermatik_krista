@@ -33,7 +33,7 @@ from krista_agent import KristaAgent
 from krista_audio import Recorder
 from krista_tui import KristaTUI
 import multiprocessing as mp
-import typer
+#import typer
 
 
 def transcription_process(state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out):
@@ -79,17 +79,17 @@ def main():
     audio_p = mp.Process(target=audio_process, args=(state, recording_queue, tui_queue_in, tui_queue_out))
     # tui_p = mp.Process(target=tui_process, args=(state, tui_queue_in, tui_queue_out))
 
-    # if not tui_only:
-    #     agent_p.start()
-    #     transcription_p.start()
-    #     audio_p.start()
+    #if not tui_only:
+    agent_p.start()
+    transcription_p.start()
+    audio_p.start()
 
-    tui = KristaTUI(state, tui_queue_in, tui_queue_out)
+    tui = KristaTUI(state, tui_queue_in, tui_queue_out, transcription_queue)
 
-    # if not tui_only:
-    #     agent_p.join()
-    #     transcription_p.join()
-    #     audio_p.join()
+    #if not tui_only:
+    agent_p.join()
+    transcription_p.join()
+    audio_p.join()
 
 
 

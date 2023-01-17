@@ -48,7 +48,7 @@ max_silence_delay = 5
 
 class Recorder:
     def __init__(self, state, recording_queue, tui_queue_in, tui_queue_out):
-        print("Recorder Init")
+        #print("Recorder Init")
         self.state = state
         self.recording_queue = recording_queue
         self.tui_queue_in = tui_queue_in
@@ -67,6 +67,10 @@ class Recorder:
         self.postroll_counter = 0
         self.recordings = 0
 
+        ipc_message = IPCMessage("LISTEN_STATUS", "not_ready")
+        self.tui_queue_in.put(ipc_message)
+
+
         self.listen()
 
     def process_audio(self, audio_sample_array: numpy.ndarray, frames: int, time: CData, status: sd.CallbackFlags):
@@ -75,7 +79,8 @@ class Recorder:
             audio_samples = audio_sample_array[:, ]
 
             if not any(audio_samples):
-                print(".")
+                ipc_message = IPCMessage("LISTEN_STATUS", "ready")
+                self.tui_queue_in.put(ipc_message)
 
                 return
 
@@ -86,21 +91,24 @@ class Recorder:
 
             if rms > volume_activation_threshold:
 
-                if self.from_silence is True:
-                    print("adding " + str(self.preroll_count) + " preroll frames")
-                    print("buffer_data")
-                    #print(self.buffer)
-                    print("-------")
-                    print("ring_buffer data")
-                    print(self.ring_buffer.data)
-                    print("-------")
-                    #self.buffer = np.concatenate((self.buffer, self.ring_buffer[1:]))
-                    print("buffer_data")
-                    #print(self.buffer)
-                    print("-------")
-                    print('\033[31m.\033[0m', end='', flush=True)
+                # if self.from_silence is True:
+                    # print("adding " + str(self.preroll_count) + " preroll frames")
+                    # print("buffer_data")
+                    # #print(self.buffer)
+                    # print("-------")
+                    # print("ring_buffer data")
+                    # print(self.ring_buffer.data)
+                    # print("-------")
+                    # #self.buffer = np.concatenate((self.buffer, self.ring_buffer[1:]))
+                    # print("buffer_data")
+                    # #print(self.buffer)
+                    # print("-------")
+                    # print('\033[31m.\033[0m', end='', flush=True)
 
-                print('.', end='', flush=True)
+                ipc_message = IPCMessage("LISTEN_STATUS", "listening")
+                self.tui_queue_in.put(ipc_message)
+
+                # print('.', end='', flush=True)
                 self.buffer = np.concatenate((self.buffer, audio_sample_array))
                 self.silence_delay_counter = 0
                 self.from_silence = False
@@ -131,12 +139,15 @@ class Recorder:
                             ipc_message = IPCMessage("RECORDING", filename)
                             self.recording_queue.put(ipc_message)
 
+                            ipc_message = IPCMessage("LISTEN_STATUS", "ready")
+                            self.tui_queue_in.put(ipc_message)
+
                     self.silence_delay_counter += 1
 
 
 
     def listen(self):
-        print("listening")
+        # print("listening")
         sd.default.device = 0
 
         with sd.InputStream(channels=1, callback=self.process_audio, blocksize=1369, samplerate=sample_rate):

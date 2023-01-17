@@ -34,16 +34,20 @@ whisper_model_size = 'medium'
 class Transcriber:
     def __init__(self, state, recording_queue, transcription_queue, tui_queue_in, tui_queue_out):
 
-        print("Transcriber Init")
+        #print("Transcriber Init")
         self.state = state
         self.recording_queue = recording_queue
         self.transcription_queue = transcription_queue
         self.tui_queue_in = tui_queue_in
         self.tui_queue_out = tui_queue_out
 
-        print("loading model")
+        ipc_message = IPCMessage("TRANSCRIBER_STATUS", "not_ready")
+        self.tui_queue_in.put(ipc_message)
+
         self.model = whisper.load_model(whisper_model_size + ".en")
-        print("done")
+
+        ipc_message = IPCMessage("TRANSCRIBER_STATUS", "ready")
+        self.tui_queue_in.put(ipc_message)
 
         self.transcribe()
 
@@ -57,18 +61,28 @@ class Transcriber:
                 if ipc_message.type == "RECORDING":
                     filename = ipc_message.data
                     #print("transcribing")
+
+                    ipc_message = IPCMessage("TRANSCRIBER_STATUS", "transcribing")
+                    self.tui_queue_in.put(ipc_message)
+
                     result = self.model.transcribe(filename, fp16=False, language='en', task='transcribe')
 
+                    ipc_message = IPCMessage("TRANSCRIBER_STATUS", "ready")
+                    self.tui_queue_in.put(ipc_message)
+
                     message = "".join(ch for ch in result['text'] if ch not in ",.?!'").lower()
-                    print(message)
+                    ipc_message = IPCMessage("RAW_TRANSCRIPTION", message)
+                    self.tui_queue_in.put(ipc_message)
                     wake_words = ["hey krista", "hey christa", "hey christo", "hey chris"]
 
                     self.state['agent_prompted'] = True
 
                     if any(substring in message for substring in wake_words):
-                        print(message)
+                        # print(message)
                         ipc_message = IPCMessage("TRANSCRIPTION", message)
                         self.transcription_queue.put(ipc_message)
+                        self.tui_queue_in.put(ipc_message)
+
 
 
 
