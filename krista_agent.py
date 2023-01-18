@@ -42,6 +42,7 @@ from pydub.playback import play
 import sounddevice as sd
 import soundfile as sf
 import requests
+import json
 
 
 #
@@ -56,12 +57,10 @@ session = Session(profile_name="krista")
 polly = session.client("polly")
 
 
-hamsats = {'AO-109': 47311, 'AO-27': 22825, 'AO-73': 39444, 'AO-7': 7530, 'AO-91': 43017, 'AO-92': 43137, 'AO-95': 43770, 'CAS-2T': 41847, 'CAS-4A': 43441, 'CAS-4B': 42759, 'CUTE-1': 27844, 'EO-80': 40032, 'EO-88': 42017, 'FO-29': 24278, 'FO-99': 43937, 'FS-3': 30776, 'HO-113': 50466, 'HO-68': 36122, 'IO-86': 40931, 'ISS-FM': 25544, 'JAISAT-1': 44419, 'JO-97': 43803, 'LILACSAT-2': 40908, 'LO-19': 20442, 'LO-87': 41557, 'NO-44': 26931, 'PICSAT': 43132, 'PO-101': 43678, 'QO-100': 43700, 'RS-44': 44909, 'SO-50': 27607, 'TO-108': 44881, 'UO-11': 14781, 'UVSQ-SAT': 47438, 'XI-IV': 27848, 'XW-2A': 40903, 'XW-2B': 40911, 'XW-2C': 40906, 'XW-2D': 40907, 'XW-2E': 40909, 'XW-2F': 40910}
-
-
 class KristaAgent:
     def __init__(self, state, transcription_queue, tui_queue_in, tui_queue_out):
         # print("Agent Init")
+        self.satellite_list = {}
         self.state = state
         self.transcription_queue = transcription_queue
         self.tui_queue_in = tui_queue_in
@@ -69,10 +68,23 @@ class KristaAgent:
 
         self.running = True
 
-        self.process_messages()
-
         ipc_message = IPCMessage("AGENT_STATUS", "ready")
         self.tui_queue_in.put(ipc_message)
+
+        self.get_satellite_list()
+        self.process_messages()
+
+    def get_satellite_list(self):
+        # api-endpoint
+        URL = "http://127.0.0.1:8001/satellite_list"
+
+        # sending get request and saving the response as response object
+        r = requests.get(url=URL)
+
+        # extracting data in json format
+        json_data = json.loads(r.text)
+        # print(json_data)
+        self.satellite_list = json_data
 
     def get_satellite_prediction(self, norad_cat_id):
 
@@ -155,7 +167,7 @@ class KristaAgent:
         satlist = s.read()
         s.close()
 
-        gpt_prompt = satlist + "is a list of valid satellites." + sample_responses + " is a list of sample responses.  make sure satellite is in the list of valid satellites, and set satellite to 'unknown' if it is not.  form the following question into properly formatted json as above:" + input + "{\n \"question\":"
+        gpt_prompt = satlist + "is a list of valid satellites." + sample_responses + " is a list of sample responses.  form the following question into properly formatted json as above:" + input + "{\n \"question\":"
 
         ipc_message = IPCMessage("AGENT_STATUS", "thinking")
         self.tui_queue_in.put(ipc_message)
@@ -189,7 +201,7 @@ class KristaAgent:
             if 'satellite' in request_data['input_parameters']:
 
                 satellite_name = request_data['input_parameters']['satellite']
-                norad_cat_id = hamsats[satellite_name]
+                norad_cat_id = self.satellite_list[satellite_name.upper()]
                 #print(request_data['input_parameters']['satellite'])
                 prediction = self.get_satellite_prediction(norad_cat_id)
 
