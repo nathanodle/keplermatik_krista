@@ -41,6 +41,9 @@ from pydub import AudioSegment
 from pydub.playback import play
 import sounddevice as sd
 import soundfile as sf
+import requests
+
+
 #
 # print(torch.cuda.get_device_name(0))
 # print("Agent")
@@ -51,6 +54,9 @@ import os
 
 session = Session(profile_name="krista")
 polly = session.client("polly")
+
+
+hamsats = {'AO-109': 47311, 'AO-27': 22825, 'AO-73': 39444, 'AO-7': 7530, 'AO-91': 43017, 'AO-92': 43137, 'AO-95': 43770, 'CAS-2T': 41847, 'CAS-4A': 43441, 'CAS-4B': 42759, 'CUTE-1': 27844, 'EO-80': 40032, 'EO-88': 42017, 'FO-29': 24278, 'FO-99': 43937, 'FS-3': 30776, 'HO-113': 50466, 'HO-68': 36122, 'IO-86': 40931, 'ISS-FM': 25544, 'JAISAT-1': 44419, 'JO-97': 43803, 'LILACSAT-2': 40908, 'LO-19': 20442, 'LO-87': 41557, 'NO-44': 26931, 'PICSAT': 43132, 'PO-101': 43678, 'QO-100': 43700, 'RS-44': 44909, 'SO-50': 27607, 'TO-108': 44881, 'UO-11': 14781, 'UVSQ-SAT': 47438, 'XI-IV': 27848, 'XW-2A': 40903, 'XW-2B': 40911, 'XW-2C': 40906, 'XW-2D': 40907, 'XW-2E': 40909, 'XW-2F': 40910}
 
 
 class KristaAgent:
@@ -67,6 +73,32 @@ class KristaAgent:
 
         ipc_message = IPCMessage("AGENT_STATUS", "ready")
         self.tui_queue_in.put(ipc_message)
+
+    def get_satellite_prediction(self, norad_cat_id):
+
+        # api-endpoint
+        URL = "http://127.0.0.1:8001/predict_now"
+
+        # location given here
+        observer_latitude = 38.951561
+        observer_longitude = -92.328636
+
+        prediction_request = '{"observer_latitude": 38.951561, "observer_longitude": -92.328636, "norad_cat_id": ' + str(norad_cat_id) + '}'
+
+
+        # sending get request and saving the response as response object
+        r = requests.post(url=URL, data=prediction_request)
+
+        # extracting data in json format
+        prediction = r.text
+
+        #print(prediction)
+        ipc_message = IPCMessage("JSON_MESSAGE", prediction)
+        #self.tui_queue_in.put(ipc_message)
+
+        return prediction
+
+
 
     def process_messages(self):
 
@@ -141,6 +173,7 @@ class KristaAgent:
         request = "     {\"question\": " + response['choices'][0]['text']
 
         ipc_message = IPCMessage("JSON_MESSAGE", request)
+
         self.tui_queue_in.put(ipc_message)
 
         ipc_message = IPCMessage("AGENT_STATUS", "ready")
@@ -156,9 +189,12 @@ class KristaAgent:
             if 'satellite' in request_data['input_parameters']:
 
                 satellite_name = request_data['input_parameters']['satellite']
+                norad_cat_id = hamsats[satellite_name]
                 #print(request_data['input_parameters']['satellite'])
+                prediction = self.get_satellite_prediction(norad_cat_id)
 
-                gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':{'latitude': 38.9517, 'longitude': -92.3341', 'elevation': 'unknown', 'range': '500 km'}}.  You have been asked the following question: " + request + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
+
+                gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':" + prediction + ".  You have been asked the following question: " + request + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
 
                 ipc_message = IPCMessage("AGENT_STATUS", "thinking")
                 self.tui_queue_in.put(ipc_message)

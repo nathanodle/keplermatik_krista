@@ -14,6 +14,7 @@ import io
 from rich.table import Table
 from rich.syntax import Syntax
 from rich.spinner import Spinner
+from rich.json import JSON
 from rich.text import Text
 import textwrap
 
@@ -185,7 +186,8 @@ class KristaTUI(App):
                 if ipc_message.type == "JSON_MESSAGE":
                     self.json_log_content = ipc_message.data
 
-                    self.query_one("#json_log").update(Syntax(self.json_log_content, "json", background_color="#181414", indent_guides=False))
+                    #self.query_one("#json_log").update(Syntax(self.json_log_content, "json", background_color="#181414", indent_guides=False))
+                    self.query_one("#json_log").update(JSON(self.json_log_content))
                     #self.query_one("#json_log").update(ipc_message.data)
                     # self.query_one("#json_log").write(" ")
 
