@@ -25,32 +25,6 @@ from textual.widgets import TextLog
 
 from krista_util import IPCMessage
 
-CSV = """lane,swimmer,country,time
-4,Joseph Schooling,Singapore,50.39
-2,Michael Phelps,United States,51.14
-5,Chad le Clos,South Africa,51.14
-6,László Cseh,Hungary,51.14
-3,Li Zhuhao,China,51.26
-8,Mehdy Metella,France,51.58
-7,Tom Shields,United States,51.73
-1,Aleksandr Sadovnikov,Russia,51.84"""
-
-
-CODE = '''\
-def loop_first_last(values: Iterable[T]) -> Iterable[tuple[bool, bool, T]]:
-    """Iterate and generate a tuple with a flag for first and last value."""
-    iter_values = iter(values)
-    try:
-        previous_value = next(iter_values)
-    except StopIteration:
-        return
-    first = True
-    for value in iter_values:
-        yield first, False, previous_value
-        first = False
-        previous_value = value
-    yield first, True, previous_value\
-'''
 class ListenWidget(Static):
     def __init__(self, message,
                  name: str | None = None,
@@ -108,12 +82,22 @@ class KristaTUI(App):
 
     BINDINGS = [
         ("`", "focus_input", "Chat"),
+        #("/", "enable_record", "Enable_record")
     ]
-
 
     def action_focus_input(self) -> None:
         input_box = self.query_one("#chat_input")
         self.screen.set_focus(input_box)
+
+    def action_enable_record(self) -> None:
+        if self.state['agent_speaking']:
+            self.state['agent_speaking'] = False
+            input_box = self.query_one("#fft_container")
+            input_box.update("Recording")
+        else:
+                self.state['agent_speaking'] = True
+                input_box = self.query_one("#fft_container")
+                input_box.update("Not Recording")
 
     def compose(self) -> ComposeResult:
         self.listen_status = Label("Listen", id="listen_status")
@@ -124,11 +108,12 @@ class KristaTUI(App):
         #json_log = TextLog(highlight=False, markup=True, wrap=True, id="json_log")
         chat_log = Static(id="chat_log")
         json_log = Static(id="json_log")
+        prediction_log = Static(id="prediction_log")
 
 
         """Called to add widgets to the app."""
         yield Horizontal(Label(":ringed_planet: Keplermatik Krista"), id="header_container")
-        yield Horizontal(Label("audio stuff", id="audio_stats"), TUIAudioDisplay(id="fft_container"), id="audio_container")
+        yield Horizontal(Vertical(Label(" Prediction"), prediction_log, id="prediction_container"), Static(id="fft_container"), id="audio_container")
         yield Horizontal(Vertical(Label(" Chat"), chat_log, Horizontal(Label("\n Input "), Input(placeholder = "", id="chat_input"), id="input_container"), id="chat_container"), Vertical(Label(" Generated JSON"), json_log, id="json_container"), id="logs")
         yield Horizontal(Label("Raw transcription: ", id="raw_transcription_label"), Static("", id="transcription_message"), id="status_container")
         yield Horizontal(self.listen_status, Label(" | ", classes="seperator"), self.transcriber_status, Label(" | ", classes="seperator"), self.agent_status, id="footer_container")
@@ -190,6 +175,10 @@ class KristaTUI(App):
                     self.query_one("#json_log").update(JSON(self.json_log_content))
                     #self.query_one("#json_log").update(ipc_message.data)
                     # self.query_one("#json_log").write(" ")
+
+                if ipc_message.type == "PREDICTION_MESSAGE":
+                    self.json_log_content = ipc_message.data
+                    self.query_one("#prediction_log").update(JSON(self.json_log_content))
 
                 if ipc_message.type == "TRANSCRIPTION":
                     self.chat_log_content = "" + "[bold red]You:\n[white]" + ipc_message.data.upper() + "\n"

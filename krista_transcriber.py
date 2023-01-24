@@ -24,8 +24,8 @@
 #     delete this exception statement from your version. If you delete this
 #     exception statement from all source files in the program, then also delete
 #     it in the license file.
-
-import whisper
+import requests
+# import whisper
 from krista_util import IPCMessage
 
 whisper_model_size = 'medium'
@@ -44,13 +44,22 @@ class Transcriber:
         ipc_message = IPCMessage("TRANSCRIBER_STATUS", "not_ready")
         self.tui_queue_in.put(ipc_message)
 
-        self.model = whisper.load_model(whisper_model_size + ".en")
+        #self.model = whisper.load_model(whisper_model_size + ".en")
 
         ipc_message = IPCMessage("TRANSCRIBER_STATUS", "ready")
         self.tui_queue_in.put(ipc_message)
 
         self.transcribe()
 
+    def get_transcription(self, filename):
+        url = 'http://192.168.1.2:8002/transcribe'
+        with open(filename, 'rb') as file:
+
+            file = {'file': file}
+            resp = requests.post(url=url, files=file)
+            transcription = resp.json()["transcription_result"]["text"]
+
+        return transcription
 
     def transcribe(self):
         while True:
@@ -65,19 +74,25 @@ class Transcriber:
                     ipc_message = IPCMessage("TRANSCRIBER_STATUS", "transcribing")
                     self.tui_queue_in.put(ipc_message)
 
-                    result = self.model.transcribe(filename, fp16=False, language='en', task='transcribe')
+                    #result = self.model.transcribe(filename, fp16=False, language='en', task='transcribe')
+                    result = self.get_transcription(filename)
 
                     ipc_message = IPCMessage("TRANSCRIBER_STATUS", "ready")
                     self.tui_queue_in.put(ipc_message)
 
-                    message = "".join(ch for ch in result['text'] if ch not in ",.?!'").lower()
+                    message = "".join(ch for ch in result if ch not in ",.?!'").lower()
                     ipc_message = IPCMessage("RAW_TRANSCRIPTION", message)
                     self.tui_queue_in.put(ipc_message)
                     wake_words = ["hey krista", "hey christa", "hey christo", "hey chris"]
 
+                    message = message.replace("christa", "krista")
+                    message = message.replace("christo", "krista")
+                    message = message.replace("chris", "krista")
+
                     self.state['agent_prompted'] = True
 
                     if any(substring in message for substring in wake_words):
+
                         # print(message)
                         ipc_message = IPCMessage("TRANSCRIPTION", message)
                         self.transcription_queue.put(ipc_message)

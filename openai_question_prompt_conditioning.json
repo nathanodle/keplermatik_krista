@@ -14,10 +14,10 @@
       ]
     },
     {
-      "question": "what is the current latitude and longitude of ARISS?",
+      "question": "what is the current latitude and longitude of the International Space Station?",
       "category": "satellite_state",
       "input_parameters": {
-        "satellite": "ARISS",
+        "satellite": "ISS",
         "time": "now"
       },
       "output_parameters": [
@@ -29,14 +29,13 @@
       "question": "where will the ISS be at 8:36pm?",
       "category": "satellite_state",
       "input_parameters": {
-        "satellite": "ISS-FM",
+        "satellite": "ISS",
         "time": "Dec 31 2022 20:36UTC"
       },
       "output_parameters": [
         "latitude",
         "longitude",
         "altitude",
-        "nearest_city"
       ]
     },
     {

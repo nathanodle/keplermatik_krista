@@ -24,12 +24,11 @@
 #     delete this exception statement from your version. If you delete this
 #     exception statement from all source files in the program, then also delete
 #     it in the license file.
+from krista_util import IPCMessage
 
 import threading
 
 import openai
-import torch
-
 
 from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
@@ -39,19 +38,11 @@ import sys
 import dirtyjson
 from pydub import AudioSegment
 from pydub.playback import play
-import sounddevice as sd
-import soundfile as sf
 import requests
 import json
+from thefuzz import fuzz
 
-
-#
-# print(torch.cuda.get_device_name(0))
-# print("Agent")
 openai.api_key = os.getenv("OPENAI_API_KEY")
-from krista_util import IPCMessage
-
-import os
 
 session = Session(profile_name="krista")
 polly = session.client("polly")
@@ -59,7 +50,7 @@ polly = session.client("polly")
 
 class KristaAgent:
     def __init__(self, state, transcription_queue, tui_queue_in, tui_queue_out):
-        # print("Agent Init")
+
         self.satellite_list = {}
         self.state = state
         self.transcription_queue = transcription_queue
@@ -76,7 +67,7 @@ class KristaAgent:
 
     def get_satellite_list(self):
         # api-endpoint
-        URL = "http://127.0.0.1:8001/satellite_list"
+        URL = "http://192.168.1.2:8001/satellite_list"
 
         # sending get request and saving the response as response object
         r = requests.get(url=URL)
@@ -86,27 +77,81 @@ class KristaAgent:
         # print(json_data)
         self.satellite_list = json_data
 
+
+
+
+
+    def get_closest_matches(self, input):
+
+        fuzz_ratios = {}
+
+        top_count = 100
+        top_satellites = []
+        for i in range(0, top_count - 1):
+            top_satellites.append(("", 0))
+
+        ipc_message = IPCMessage("JSON_MESSAGE", "")
+        for satellite_name, norad_cat_id in self.satellite_list.items():
+            fuzz_ratios[satellite_name] = fuzz.ratio(input, satellite_name)
+
+        fuzz_ratios = dict(sorted(fuzz_ratios.items(), key=lambda x:x[1]))
+
+        for satellite_name, score in fuzz_ratios.items():
+
+            if score > top_satellites[0][1]:
+                top_satellites.pop(0)
+                top_satellites.append((satellite_name, score))
+
+        top_satellites.append(('OSCAR 7', fuzz_ratios['OSCAR 7']))
+
+        sat_list = list(map(lambda x: x[0], top_satellites))
+        sat_list = json.dumps(sat_list)
+
+
+
+        gpt_prompt = f"you are a state of the art text matching system.  {sat_list} is a list of satellite_names. which satellite name is the closest to {input}?  Respond with only the satellite name:"
+
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=gpt_prompt,
+            temperature=0,
+            max_tokens=3000,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0
+        )
+
+        closest_match = response['choices'][0]['text'].strip()
+
+        ipc_message.data += "response: " + closest_match + "\n"
+        ipc_message.data += f"{top_satellites}"
+
+        #self.tui_queue_in.put(ipc_message)
+
+        return closest_match
+
+
+
+
     def get_satellite_prediction(self, norad_cat_id):
 
         # api-endpoint
-        URL = "http://127.0.0.1:8001/predict_now"
+        URL = "http://192.168.1.2:8001/predict_now"
 
         # location given here
         observer_latitude = 38.951561
         observer_longitude = -92.328636
 
-        prediction_request = '{"observer_latitude": 38.951561, "observer_longitude": -92.328636, "norad_cat_id": ' + str(norad_cat_id) + '}'
+        prediction_request = '{"observer_latitude": ' + str(observer_latitude) + ', "observer_longitude": ' + str(observer_longitude) + ', "norad_cat_id": ' + str(norad_cat_id) + '}'
 
-
-        # sending get request and saving the response as response object
         r = requests.post(url=URL, data=prediction_request)
 
         # extracting data in json format
         prediction = r.text
 
-        #print(prediction)
-        ipc_message = IPCMessage("JSON_MESSAGE", prediction)
-        #self.tui_queue_in.put(ipc_message)
+        ipc_message = IPCMessage("PREDICTION_MESSAGE", str(prediction))
+        #print(ipc_message.data)
+        self.tui_queue_in.put(ipc_message)
 
         return prediction
 
@@ -127,36 +172,8 @@ class KristaAgent:
                     self.state['agent_speaking'] = True
                     self.analyze(message)
 
-    def playfile(self, filename):
-        event = threading.Event()
-
-        data, fs = sf.read(filename, always_2d=True)
-
-        current_frame = 0
-
-        def callback(outdata, frames, time, status):
-            global current_frame
-            # if status:
-
-                #print(status)
-            chunksize = min(len(data) - current_frame, frames)
-            outdata[:chunksize] = data[current_frame:current_frame + chunksize]
-            if chunksize < frames:
-                outdata[chunksize:] = 0
-                raise sd.CallbackStop()
-            current_frame += chunksize
-
-        stream = sd.OutputStream(
-            samplerate=fs, device=0, channels=data.shape[1],
-            callback=callback, finished_callback=event.set)
-        with stream:
-            event.wait()  # Wait until playback is finished
-
     def analyze(self, input):
-
-
-
-        self.prompted = True
+        self.state['agent_speaking'] = True
         play(AudioSegment.from_mp3("acknowledge.mp3"))
         self.speak("one moment!")
         f = open("openai_question_prompt_conditioning.json", "r")
@@ -167,7 +184,7 @@ class KristaAgent:
         satlist = s.read()
         s.close()
 
-        gpt_prompt = satlist + "is a list of valid satellites." + sample_responses + " is a list of sample responses.  form the following question into properly formatted json as above:" + input + "{\n \"question\":"
+        gpt_prompt = sample_responses + " is a list of sample responses.  form the following question into properly formatted json as above:" + input + "{\n \"question\":"
 
         ipc_message = IPCMessage("AGENT_STATUS", "thinking")
         self.tui_queue_in.put(ipc_message)
@@ -185,7 +202,6 @@ class KristaAgent:
         request = "     {\"question\": " + response['choices'][0]['text']
 
         ipc_message = IPCMessage("JSON_MESSAGE", request)
-
         self.tui_queue_in.put(ipc_message)
 
         ipc_message = IPCMessage("AGENT_STATUS", "ready")
@@ -200,13 +216,26 @@ class KristaAgent:
         if 'input_parameters' in request_data:
             if 'satellite' in request_data['input_parameters']:
 
-                satellite_name = request_data['input_parameters']['satellite']
+
+                input_satellite_name = request_data['input_parameters']['satellite']
+                #satellite_name = request_data['input_parameters']['satellite']
+
+                satellite_name = self.get_closest_matches(input_satellite_name)
                 norad_cat_id = self.satellite_list[satellite_name.upper()]
+                #print(satellite_name)
+                #print(norad_cat_id)
                 #print(request_data['input_parameters']['satellite'])
                 prediction = self.get_satellite_prediction(norad_cat_id)
+                #print(prediction)
 
+                question = request_data['question']
+                question = question.replace(input_satellite_name, satellite_name)
+                request_data['input_parameters']['satellite'] = satellite_name
+                request_data['question'] = question
+                ipc_message = IPCMessage("JSON_MESSAGE", json.dumps(request_data))
 
-                gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':" + prediction + ".  You have been asked the following question: " + request + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
+                self.tui_queue_in.put(ipc_message)
+                gpt_prompt = "You are a chatbot. You know the following information: {'" + satellite_name + "_data':" + prediction + ".  You have been asked the following question: " + json.dumps(request_data['question']) + ".    Provide a friendly response that includes only the data asked for in the question.  Do not perform unit conversions if requested.  If the request requires information not found in output_parameters, don't include it in your response and apologize.   The response is: "
 
                 ipc_message = IPCMessage("AGENT_STATUS", "thinking")
                 self.tui_queue_in.put(ipc_message)
@@ -231,6 +260,7 @@ class KristaAgent:
 
         self.speak(response2)
         self.state['agent_prompted'] = False
+        self.state['agent_speaking'] = False
 
     def speak(self, text):
 
@@ -256,7 +286,7 @@ class KristaAgent:
                     with open(output, "wb") as file:
                         file.write(stream.read())
 
-                    self.state['agent_speaking'] = True
+                    # self.state['agent_speaking'] = True
 
                     play(AudioSegment.from_mp3(output))
                     os.remove(output)
@@ -264,7 +294,7 @@ class KristaAgent:
                     ipc_message = IPCMessage("AGENT_STATUS", "ready")
                     self.tui_queue_in.put(ipc_message)
 
-                    self.state['agent_speaking'] = False
+                    # self.state['agent_speaking'] = False
 
 
                 except IOError as error:

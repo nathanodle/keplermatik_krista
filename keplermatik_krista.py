@@ -56,10 +56,6 @@ def tui_process(state, tui_queue_in, tui_queue_out):
     tui = KristaTUI(state, tui_queue_in, tui_queue_out)
 
 
-# def main(tui_only: bool = typer.Option(
-#         False, help="Only start TUI.", rich_help_panel="Development"
-#     ),):
-
 def main():
     set_start_method("spawn")
 
@@ -95,5 +91,4 @@ def main():
 
 
 if __name__ == "__main__":
-    #typer.run(main)
     main()

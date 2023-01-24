@@ -32,7 +32,6 @@ from scipy._lib._ccallback import CData
 
 from ringbuffer import RingBuffer
 import sounddevice as sd
-import whisper
 from scipy.io.wavfile import write
 from krista_util import IPCMessage
 
@@ -148,7 +147,13 @@ class Recorder:
 
     def listen(self):
         # print("listening")
-        sd.default.device = 0
+        sd.default.device = 1
+
+        devices = str(sd.query_devices())
+        ipc_message = IPCMessage("JSON_MESSAGE", devices)
+        #self.tui_queue_in.put(ipc_message)
+
+        #sd.default.channels = 2, 4
 
         with sd.InputStream(channels=1, callback=self.process_audio, blocksize=1369, samplerate=sample_rate):
             while True:
